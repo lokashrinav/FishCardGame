@@ -8,7 +8,7 @@ const FishBoard = () => {
         "2:H", "3:H", "4:H", "5:H", "6:H", "7:H", "8:H", "9:H", "10:H", "J:H", "Q:H", "K:H", "A:H",
         "2:D", "3:D", "4:D", "5:D", "6:D", "7:D", "8:D", "9:D", "10:D", "J:D", "Q:D", "K:D", "A:D",
         "2:C", "3:C", "4:C", "5:C", "6:C", "7:C", "8:C", "9:C", "10:C", "J:C", "Q:C", "K:C", "A:C",
-        "2:S", "3:S", "4:S", "5:S", "6:S", "7:S", "8:S", "9:S", "10:S", "J:S", "Q:S", "K:S", "A:S"
+        "2:S", "3:S", "4:S", "5:S", "6:S", "7:S", "8:S", "9:S", "10:S", "J:S", "Q:S", "K:S", "A:S", "Joker:B", "Joker:R"
     ];
 
     const [socket, setSocket] = useState(null);
@@ -22,9 +22,9 @@ const FishBoard = () => {
     const [lastAsk, setLastAsk] = useState(null);  
     const [warning, setWarning] = useState(null);
     const [callingSet, setCallingSet] = useState(false);
-    const [finalCall, setFinalCall] = useState(Array(numPlayers / 2).fill(''));
-
-
+    const [inputValue, setInputValue] = useState('');
+    const [score, setScore] = useState([0, 0]);
+    const [winner, setWinner] = useState(null);
 
     const startGame = () => {
         if (numPlayers > 2 && numPlayers <= 18) {
@@ -33,9 +33,18 @@ const FishBoard = () => {
         }
     }
 
+    const handleFinal = () => {
+        let s = inputValue.split(" ");
+        socket.emit('check-set', s, num);
+    }
+
+    const handleInputChange = (event) => {
+        setInputValue(event.target.value); 
+      };
+
     const handleSubmit = (event) => {
         event.preventDefault(); 
-        if(cards.indexOf(cardInput) !== -1) {
+        if(cards.indexOf(cardInput) === -1) {
             setWarning("Insert proper card format")
         }
         else if(playerInput % 2 == num % 2) {
@@ -62,14 +71,31 @@ const FishBoard = () => {
       };
     
       useEffect(() => {
+    
 
         const newSocket = io("http://localhost:8080", {
             transports: ["websocket"],
           });      
         setSocket(newSocket);
 
+        newSocket.on('updateScore', (index) => {
+            setScore((prevScore) => {
+              const newScore = [...prevScore]; 
+              newScore[index] += 1; 
+              return newScore;
+            });
+            if(score[0] == 5 || score[1] == 5) {
+                socket.emit('winner', index);
+            }
+        });
+
         newSocket.on('change-players', (data) => {
             setNumPlayers(data)
+        })
+
+
+        newSocket.on('winner', (data) => {
+            setWinner(data)
         })
 
         newSocket.on('lastAsk', (data) => {
@@ -104,31 +130,12 @@ const FishBoard = () => {
       return (
         <div className='full'>
           <div className="numPlayers">Scroll Down for More Information</div>
+          {winner && <div className="numPlayers">Congratulations for Winning, {winner}!</div>}
+          {onGoingGame && <div className="numPlayers">There are {numPlayers} Players</div>}
+          <div className="numPlayers">{`Even Score: ${score[0]}, Odd Score ${score[1]}`}</div>
           {!onGoingGame && <div className="numPlayers"> {`${numPlayers} Players Queued`}</div>}
           {onGoingGame && <div className="numPlayers"> {`You are Player ${num}`}</div>}
           <div className="box" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-evenly', padding: '20px', border: '1px solid black' }}>
-            {onGoingGame && (
-              <>
-                {getFilteredPlayerNumbers().map((playerNum,idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      width: '50px',
-                      height: '50px',
-                      borderRadius: '50%',
-                      backgroundColor: 'skyblue',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: 'bold',
-                      fontSize: '18px',
-                    }}
-                  >
-                    {playerNum}
-                  </div>
-                ))}
-              </>
-            )}
             {onGoingGame && currCards && currCards.length > 0 && (
                 <div className="cards-box" style={{ marginTop: '50px', display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '10px' }}>
                 {currCards.map((card, idx) => (
@@ -171,30 +178,25 @@ const FishBoard = () => {
           {onGoingGame && (Number(currPlayer) === num) && 
             <button onClick={handleSubmit}>Submit</button>}
 
-          {onGoingGame && <button onClick={() => {setCallingSet(true)}}>Call Set</button>}
+          {onGoingGame && !callingSet && <button onClick={() => {setCallingSet(true)}}>Call Set</button>}
 
           {callingSet && (
-            <div>
-                <h3>Enter Final Set</h3>
-                {finalCall.map((call, index) => (
-                <input
-                    key={index}
-                    type="text"
-                    value={call}
-                    onChange={(e) => handleFinalCallChange(index, e.target.value)}
-                    placeholder={`Player ${num % 2 === 0 ? (index + 1) * 2 : index * 2 + 1}`}
+                <input 
+                type='text' 
+                value={inputValue} 
+                onChange={handleInputChange}
                 />
-                ))}
-                <button onClick={handleFinalCallSubmit}>Submit Final Set</button>
-                <button onClick={() => setCallingSet(false)}>Cancel</button>
-            </div>
-          )}
+            )}
 
-          {callingSet && <button onClick={handleSubmit}>Submit Final Set</button>}
+          {callingSet && <button onClick={handleFinal}>Submit Final Set</button>}
 
           {callingSet && <button onClick={() => {setCallingSet(false)}}>Cancel</button>}
 
           {warning && <div className="parity">{`Warning: ${warning}`}</div>}
+
+          <div className="parity">For Entering a Set, if you have let's say 3 teammates aside from yourself, you will put their numbers in the specificied format, in this case you are 7, ex: 1=3:H,4:H 3=5:H 5= 7=6:H,7:H</div>
+
+          <div className="parity">In the above example, no extra spaces, only between teammate number=, and only commas between different cards</div>
 
           <div className="parity">Only Works With An Even Number of Players</div>
           
@@ -205,6 +207,8 @@ const FishBoard = () => {
           <div className="parity">5:H where 5 refers to Number and H refers to Heart, no spaces</div>
 
           <div className="parity">H = Hearts, S = Spades, C = Clubs/Clover, D = Diamond</div>
+
+          <div className="parity">Jokers are referred to as Joker:R for red joker and Joker:B for black joker</div>
 
         </div>
       );

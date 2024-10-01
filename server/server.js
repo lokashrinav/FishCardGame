@@ -35,8 +35,22 @@ let cards = [
     "2:H", "3:H", "4:H", "5:H", "6:H", "7:H", "8:H", "9:H", "10:H", "J:H", "Q:H", "K:H", "A:H",
     "2:D", "3:D", "4:D", "5:D", "6:D", "7:D", "8:D", "9:D", "10:D", "J:D", "Q:D", "K:D", "A:D",
     "2:C", "3:C", "4:C", "5:C", "6:C", "7:C", "8:C", "9:C", "10:C", "J:C", "Q:C", "K:C", "A:C",
-    "2:S", "3:S", "4:S", "5:S", "6:S", "7:S", "8:S", "9:S", "10:S", "J:S", "Q:S", "K:S", "A:S"
+    "2:S", "3:S", "4:S", "5:S", "6:S", "7:S", "8:S", "9:S", "10:S", "J:S", "Q:S", "K:S", "A:S", "Joker:B", "Joker:R"
 ];
+
+const cardSets = [
+    ["2:H", "3:H", "4:H", "5:H", "6:H", "7:H"],
+    ["2:D", "3:D", "4:D", "5:D", "6:D", "7:D"],
+    ["2:C", "3:C", "4:C", "5:C", "6:C", "7:C"],
+    ["2:S", "3:S", "4:S", "5:S", "6:S", "7:S"],
+    ["9:H", "10:H", "J:H", "Q:H", "K:H", "A:H"],
+    ["9:D", "10:D", "J:D", "Q:D", "K:D", "A:D"],
+    ["9:C", "10:C", "J:C", "Q:C", "K:C", "A:C"],
+    ["9:S", "10:S", "J:S", "Q:S", "K:S", "A:S"],
+    ["8:H", "8:D", "8:C", "8:S", "Joker:B", "Joker:R"]
+];
+
+
 
 const shuffleArray = array => {
     for (let i = array.length - 1; i > 0; i--) {
@@ -89,6 +103,79 @@ io.on('connection', (socket) => {
         io.emit('change-players', numPlayers);
     }
 
+    socket.on('check-set', (s, givenPlayer) => {
+        // [1=3:H,4:H, 3=5:H, 5= 7=6:H,7:H]
+        // Also make sure they're part of the right set
+        // Allows to take from other team, but it shouldn't be allowed
+        // Can't be empty
+        // Can't ask someone once they run out of cards
+        let savedNum = null;
+        let smth = true;
+        console.log(s);
+        let i;
+        let newList = []
+        for(i = 0; i < s.length; i++) {
+            let currentCards = sentCards[s[i][0] - 1];
+            let [a, cards] = s[i].split("=");
+            console.log(cards);
+            if(cards.length == 2) {
+                if(currentCards.indexOf(cards) === -1) {
+                    console.log("Take away cards");
+                    smth = false
+                }
+                savedNum = cards;
+                newList.push(cards);
+            }
+            else {
+                let tbh = cards.split(",");
+                for(let p = 0; p < tbh.length; p++) {
+                    if(currentCards.indexOf(tbh[p]) === -1) {
+                        console.log("Take away cards");
+                        smth = false
+                    }
+                    savedNum = tbh[p];
+                    newList.push(tbh[p]);
+                }
+            }
+        }
+        
+        for(i = 0; i < cardSets.length; i++) {
+            if(cardSets[i].indexOf(savedNum) !== -1) {
+                break;
+            }
+        }
+
+        let savedIndex = i;
+
+        for(let i = 0; i < newList.length; i++) {
+            if(cardSets[savedIndex].indexOf(newList[i]) === -1) {
+                smth = false;
+            }
+        }
+
+        if(cardSets[savedIndex].length > newList.length) {
+            smth = false;
+        }
+
+        sentCards = sentCards.map(subArray => 
+            subArray.filter(card => !cardSets[i].includes(card))
+        );
+        
+        console.log(smth);
+        console.log(newList);
+        console.log(cardSets[savedIndex]);
+        if(smth) {
+            io.emit('updateScore', (givenPlayer) % 2);
+        }
+        else {
+            io.emit('updateScore', (givenPlayer + 1) % 2);
+        }
+
+        for(let i = 0; i < players.length; i++) {
+            io.to(players[i]).emit('changeCards', sentCards[i]);
+        }
+    })
+
     socket.on('handleSubmit', (playerInput, playerInput2, cardInput, lastAsk) => {
         let index = sentCards[playerInput - 1].indexOf(cardInput);
         if(index !== -1) {
@@ -109,6 +196,15 @@ io.on('connection', (socket) => {
         numPlayers -= 1;
         players.splice(players.indexOf(socket.id), 1);
         io.emit('change-players', numPlayers);
+    })
+
+    socket.on('winner', (index) => {
+        if(index % 2 == 1) {
+            io.emit('winner', "Evens");
+        }
+        else {
+            io.emit("winner", "Odds");
+        }
     })
 
     socket.on('start-game', () => {

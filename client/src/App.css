@@ -52,7 +52,6 @@
   background-color: white;
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-evenly;
   padding: 20px;
   border: 1px solid black;
 }
