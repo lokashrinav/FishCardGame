@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@vitejs/plugin-react": "^4.3.2",
     "cors": "^2.8.5",
     "express": "^4.21.0",
     "http": "^0.0.1-security",
