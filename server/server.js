@@ -21,6 +21,13 @@ app.use(cors({
     credentials: true
 }));
 
+app.use(express.static(path.join(__dirname, '../client/dist'))); 
+
+// Handle GET requests to /
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/dist', 'index.html'));
+});
+
 const io = new Server(server, {
     cors: {
         origin: ["http://localhost:5173"],
