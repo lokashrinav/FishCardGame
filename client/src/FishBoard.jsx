@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
 import './App.css';
+import PlayersCircle from './PlayersCircle';
 
 const getCardImageUrl = (card) => {
   if (card === "Joker:B") return "/png/black_joker.png";
@@ -126,17 +127,22 @@ const FishBoard = () => {
           )}
         </div>
       </header>
-      <section className="cards-section">
-        {onGoingGame && currCards && currCards.length > 0 && (
-          <div className="cards-grid">
-            {currCards.map((card, idx) => (
-              <div key={idx} className="card">
-                <img src={getCardImageUrl(card)} alt={card} className="card-image" />
-              </div>
-            ))}
-          </div>
+        {onGoingGame && num && (
+        <>
+            <PlayersCircle numPlayers={numPlayers} localPlayer={num} />
+            <div className="cards-section">
+            {currCards && currCards.length > 0 && (
+                <div className="cards-grid">
+                {currCards.map((card, idx) => (
+                    <div key={idx} className="card">
+                    <img src={getCardImageUrl(card)} alt={card} className="card-image" />
+                    </div>
+                ))}
+                </div>
+            )}
+            </div>
+        </>
         )}
-      </section>
       {lastAsk && <div className="last-ask">{lastAsk}</div>}
       <section className="controls">
         {!onGoingGame && (
